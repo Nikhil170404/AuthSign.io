@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
-import { ref, uploadString, getDownloadURL, deleteObject, listAll } from "firebase/storage"; // Ensure listAll is imported
-import { storage } from './Firebase'; // Firebase setup
-import { auth } from './Firebase'; // Import Firebase Auth
-import './SignaturePad.css'; // Updated styling
-import { compareSignatures } from './SignatureVerification'; // Signature comparison logic
+import { ref, uploadString, getDownloadURL, deleteObject, listAll } from "firebase/storage"; 
+import { storage } from './Firebase'; 
+import { auth } from './Firebase'; 
+import './SignaturePad.css'; 
+import { compareSignatures } from './SignatureVerification'; 
 
 const SignaturePad = () => {
   const sigPad = useRef({});
@@ -14,29 +14,42 @@ const SignaturePad = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [user, setUser] = useState(null);
   const [savedSignatures, setSavedSignatures] = useState([]);
+  const [similarSignatures, setSimilarSignatures] = useState([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe(); // Cleanup subscription on unmount
+    return () => unsubscribe(); 
   }, []);
 
   const clearPad = () => {
     sigPad.current.clear();
   };
 
-  const verifySignature = async (newSignatureURL, oldSignatureURL) => {
-    const img1 = new Image();
-    img1.src = newSignatureURL;
+  const verifySignature = async (newSignatureURL) => {
+    const newSignatureImage = new Image();
+    newSignatureImage.src = newSignatureURL;
 
-    const img2 = new Image();
-    img2.src = oldSignatureURL;
+    const similarityScores = await Promise.all(savedSignatures.map(async (oldSignatureURL) => {
+      const oldSignatureImage = new Image();
+      oldSignatureImage.src = oldSignatureURL;
 
-    img1.onload = () => {
-      img2.onload = () => {
-        const result = compareSignatures(img1, img2);
-        setVerificationResult(result ? "Signatures Match!" : "Signatures Do Not Match!");
-      };
-    };
+      return new Promise((resolve) => {
+        oldSignatureImage.onload = async () => {
+          const score = await compareSignatures(newSignatureImage, oldSignatureImage);
+          resolve({ url: oldSignatureURL, score });
+        };
+      });
+    }));
+
+    // Filter to get signatures above a certain similarity threshold (e.g., 80%)
+    const similarMatches = similarityScores.filter(match => match.score >= 0.8);
+    setSimilarSignatures(similarMatches);
+    
+    if (similarMatches.length > 0) {
+      setVerificationResult("Similar signatures found!");
+    } else {
+      setVerificationResult("No similar signatures found.");
+    }
   };
 
   const saveSignature = async () => {
@@ -60,12 +73,9 @@ const SignaturePad = () => {
       const downloadURL = await getDownloadURL(signatureRef);
       setImageURL(downloadURL);
 
-      // Fetch an old signature URL for verification
-      const oldSignatureURL = await fetchOldSignatureURL(); // Replace with actual fetching logic if needed
-      await verifySignature(downloadURL, oldSignatureURL); // Call verifySignature after saving
-
-      // Refresh saved signatures
-      await fetchSavedSignatures(); // Wait for signatures to be fetched
+      // Verify the new signature against saved signatures
+      await verifySignature(downloadURL);
+      await fetchSavedSignatures(); 
 
     } catch (error) {
       console.error("Error saving signature:", error);
@@ -75,18 +85,11 @@ const SignaturePad = () => {
     }
   };
 
-  const fetchOldSignatureURL = async () => {
-    // Implement logic to fetch the old signature URL if needed
-    // For now, you can return a placeholder or a fetched URL from Firebase
-    return ''; // Replace with actual URL fetching logic
-  };
-
   const fetchSavedSignatures = async () => {
     if (!user) return;
 
     const userSignaturesRef = ref(storage, `signatures/${user.uid}/`);
     try {
-      // List all files in the user's signatures folder
       const listResponse = await listAll(userSignaturesRef);
       const urls = await Promise.all(
         listResponse.items.map(item => getDownloadURL(item))
@@ -102,7 +105,7 @@ const SignaturePad = () => {
     const signatureRef = ref(storage, signatureURL);
     try {
       await deleteObject(signatureRef);
-      fetchSavedSignatures(); // Refresh the list after deletion
+      fetchSavedSignatures(); 
     } catch (error) {
       console.error("Error deleting signature:", error);
     }
@@ -132,6 +135,16 @@ const SignaturePad = () => {
 
       {verificationResult && <p className="verification-result">{verificationResult}</p>}
       {errorMessage && <p className="error-message">{errorMessage}</p>}
+
+      <div className="similar-signatures">
+        <h3>Similar Signatures:</h3>
+        {similarSignatures.map((match, index) => (
+          <div key={index} className="similar-signature-item">
+            <img src={match.url} alt={`Similar Signature ${index}`} className="similar-signature-thumb" />
+            <p>Similarity Score: {(match.score * 100).toFixed(2)}%</p>
+          </div>
+        ))}
+      </div>
 
       <div className="saved-signatures">
         <h3>Your Saved Signatures:</h3>
