@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/AuthSign.io/static/css/main.195a7ec7.css",
-    "main.js": "/AuthSign.io/static/js/main.800baed3.js",
+    "main.js": "/AuthSign.io/static/js/main.107fae37.js",
     "static/js/453.1d80aab3.chunk.js": "/AuthSign.io/static/js/453.1d80aab3.chunk.js",
     "index.html": "/AuthSign.io/index.html",
     "main.195a7ec7.css.map": "/AuthSign.io/static/css/main.195a7ec7.css.map",
-    "main.800baed3.js.map": "/AuthSign.io/static/js/main.800baed3.js.map",
+    "main.107fae37.js.map": "/AuthSign.io/static/js/main.107fae37.js.map",
     "453.1d80aab3.chunk.js.map": "/AuthSign.io/static/js/453.1d80aab3.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.195a7ec7.css",
-    "static/js/main.800baed3.js"
+    "static/js/main.107fae37.js"
   ]
 }
